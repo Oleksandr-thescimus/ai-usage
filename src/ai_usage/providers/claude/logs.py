@@ -108,6 +108,7 @@ def parse_line(line: bytes, project: str = "unknown") -> tuple[tuple[str, str], 
         output_tokens=_int(usage.get("output_tokens")),
         cache_creation_tokens=_int(usage.get("cache_creation_input_tokens")),
         cache_read_tokens=_int(usage.get("cache_read_input_tokens")),
+        project_key=project,  # `project` is replaced by its display label in scan()
     )
     return (message_id, request_id), record, cwd
 

@@ -66,6 +66,23 @@ class UsageRecord:
     output_tokens: int
     cache_creation_tokens: int
     cache_read_tokens: int
+    # Stable project id (Claude: transcript dir name). `project` is the display label,
+    # which can change as more data arrives; history is keyed by this instead.
+    project_key: str = ""
+
+
+@dataclass(frozen=True)
+class UsageBucket:
+    """Usage summed over one UTC hour for one model and project (persisted history)."""
+
+    hour: datetime  # start of the UTC hour, timezone-aware
+    model: str
+    project: str  # display label
+    input_tokens: int
+    output_tokens: int
+    cache_creation_tokens: int
+    cache_read_tokens: int
+    requests: int
 
 
 @dataclass
@@ -88,6 +105,13 @@ class TokenTotals:
         self.cache_read += rec.cache_read_tokens
         self.requests += 1
         self.sessions.add(rec.session_id)
+
+    def add_bucket(self, bucket: UsageBucket) -> None:
+        self.input += bucket.input_tokens
+        self.output += bucket.output_tokens
+        self.cache_write += bucket.cache_creation_tokens
+        self.cache_read += bucket.cache_read_tokens
+        self.requests += bucket.requests
 
     def as_dict(self) -> dict:
         return {

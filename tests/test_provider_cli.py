@@ -26,7 +26,8 @@ class ProviderTest(unittest.TestCase):
         self.config = Path(tmp.name) / "claude"
         (self.config / "projects" / "-w").mkdir(parents=True)
         env = mock.patch.dict(os.environ, {"CLAUDE_CONFIG_DIR": str(self.config),
-                                           "XDG_CACHE_HOME": str(Path(tmp.name) / "cache")})
+                                           "XDG_CACHE_HOME": str(Path(tmp.name) / "cache"),
+                                           "XDG_DATA_HOME": str(Path(tmp.name) / "data")})
         env.start()
         self.addCleanup(env.stop)
 

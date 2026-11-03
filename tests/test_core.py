@@ -28,6 +28,8 @@ class AggregateTest(unittest.TestCase):
     def test_period_start(self):
         self.assertEqual(period_start("today", NOW), datetime(2026, 11, 3, tzinfo=TZ))
         self.assertEqual(period_start("7d", NOW), datetime(2026, 10, 28, tzinfo=TZ))
+        self.assertEqual(period_start("90d", NOW), datetime(2026, 8, 6, tzinfo=TZ))
+        self.assertEqual(period_start("12m", NOW), datetime(2025, 12, 1, tzinfo=TZ))  # 12 whole months
         self.assertIsNone(period_start("all", NOW))
         with self.assertRaises(ValueError):
             period_start("year", NOW)

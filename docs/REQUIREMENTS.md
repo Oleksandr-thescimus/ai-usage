@@ -87,6 +87,22 @@ only covers the transcripts that still exist.
   `tokens --show-hidden`, both missing from `--help`. Stored in
   `$XDG_CONFIG_HOME/ai-usage/config.json`.
 
+- **FR-10 Timeline**: a Timeline tab (replaces "By day") with a column chart. One shared
+  period selector (Today / 7 / 30 / 90 days / 12 months / All time, remembered) scopes
+  the tables and the timeline alike; data outside it is left out so sums agree. Bar size
+  day / week / month (remembered), Today by hour; a size needing more than 120 bars is
+  disabled for that period and the next coarser one is shown, without overwriting the
+  saved choice. Metric switch (Output by default, Total, Requests, Input + cache write),
+  project filter (hidden projects listed only in reveal mode), average reference line,
+  comparison with the equally long span before the period (shown only when the history
+  covers it), hover tooltips, a table of every bar. Bars covering only part of their
+  span (running period, cut by the period start, history starting inside) are lighter
+  and left out of the average; days before the history aren't drawn.
+- **FR-11 Persistent history**: every log scan folds hourly totals per (UTC hour, model,
+  project key) into `$XDG_DATA_HOME/ai-usage/claude-history.json` with a per-counter
+  max merge, so deleted transcripts never lower the history. An unreadable file is
+  moved aside, never overwritten. Numbers only.
+
 ## Non-functional requirements
 
 - **NFR-1 Read-only towards Claude**: never write the credentials file, never refresh the
@@ -107,5 +123,4 @@ only covers the transcripts that still exist.
 ## Out of scope for v0.1
 
 Desktop notifications, $ cost estimates, other providers (Codex CLI, Gemini CLI, …),
-Anthropic Admin/Usage API org reports, persisting history beyond Claude Code's own
-transcript retention, packaging (.deb/Flatpak), non-GNOME desktops (may work, untested).
+Anthropic Admin/Usage API org reports, packaging (.deb/Flatpak), non-GNOME desktops (may work, untested).

@@ -52,6 +52,15 @@ install.sh             wrapper + launcher install/uninstall
 - [x] **10. Hidden projects (FR-9)**: `config.py`, CLI `hide`/`unhide`/`--show-hidden`,
       right-click menu + Ctrl+Shift+H reveal mode in the statistics window, tests.
 
+- [x] **11. Timeline + persistent history (FR-10, FR-11)**: `history.py`, `timeline.py`,
+      `tray/chart.py` (cairo column chart), Timeline tab; Claude Code's
+      `cleanupPeriodDays` raised to 365 on this machine (backup:
+      `~/.claude/settings.json.bak-before-ai-usage`).
+
+- [x] **12. Shared period for the timeline**: the top period selector now drives the
+      timeline too (+ 90 days, 12 months; Today by hour), bar sizes that would exceed
+      120 bars disabled per period, comparison with the previous span of equal length.
+
 ## Verification results (2026-11-03)
 
 - 41 unit tests pass (`PYTHONPATH=src python3 -m unittest discover -s tests -t .`).
@@ -71,7 +80,18 @@ install.sh             wrapper + launcher install/uninstall
   synthetic data and a temp config: Ctrl+H alone does nothing; Ctrl+Shift+H reveals;
   right-click offers Hide/Unhide; closing the window turns reveal mode off.
 
+- Timeline: 73 tests pass, incl. GTK window tests (skipped without a display) and a
+  guard that keeps tests out of the real XDG dirs. Rendered on real data (temp history):
+  day / week / month / requests views, hover, the average label clearing the columns.
+  Found and fixed: a NUL char in a combo id that GTK truncates (the chart stayed empty);
+  a month-vs-partial-month comparison (+1443%) and a partial first month dragging the
+  average down. Both are now flagged and left out.
+
+- Shared period: 78 tests pass (with deprecation warnings as errors). Rendered on real
+  data: Today by hour, 7 days by week (cut week lighter), 90 days by day (starts at the
+  history), 12 months by month.
+
 ## Later (not v0.1)
 
-Threshold notifications; $ estimate; Codex CLI / Gemini CLI providers; a persistent
-token history so totals survive transcript cleanup; .deb packaging.
+Threshold notifications; $ estimate; Codex CLI / Gemini CLI providers; tables computed
+from the history too (they use only the existing transcripts); .deb packaging.

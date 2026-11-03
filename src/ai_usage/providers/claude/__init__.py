@@ -5,7 +5,8 @@ from __future__ import annotations
 from datetime import datetime, timezone
 
 from ai_usage import cache
-from ai_usage.models import LimitsSnapshot, UsageRecord
+from ai_usage.history import UsageHistory
+from ai_usage.models import LimitsSnapshot, UsageBucket, UsageRecord
 from ai_usage.providers.claude import paths
 from ai_usage.providers.claude.credentials import load_credentials
 from ai_usage.providers.claude.limits import LimitsError, fetch_usage_json, parse_usage
@@ -19,6 +20,8 @@ class ClaudeProvider:
 
     def __init__(self) -> None:
         self._scanner = LogScanner(paths.projects_dirs())
+        self._history = UsageHistory(self.name)
+        self._buckets: list[UsageBucket] | None = None
 
     def fetch_limits(self) -> LimitsSnapshot:
         creds = load_credentials(paths.credentials_file())
@@ -53,4 +56,13 @@ class ClaudeProvider:
         return cache.load_limits(self.name)
 
     def usage_records(self) -> list[UsageRecord]:
-        return self._scanner.scan()
+        records = self._scanner.scan()
+        # Every scan also persists the history, so whatever reads the logs (tray or CLI)
+        # keeps the timeline alive past Claude Code's transcript cleanup.
+        self._buckets = self._history.update(records)
+        return records
+
+    def usage_history(self) -> list[UsageBucket]:
+        if self._buckets is None:
+            self.usage_records()
+        return list(self._buckets or [])

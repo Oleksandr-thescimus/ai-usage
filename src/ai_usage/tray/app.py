@@ -20,7 +20,7 @@ from gi.repository import GLib, Gtk  # noqa: E402
 from ai_usage import autostart, fmt  # noqa: E402
 from ai_usage.aggregate import in_period, totals  # noqa: E402
 from ai_usage.backoff import Backoff  # noqa: E402
-from ai_usage.models import LimitsSnapshot, UsageRecord, severity_for  # noqa: E402
+from ai_usage.models import LimitsSnapshot, UsageBucket, UsageRecord, severity_for  # noqa: E402
 from ai_usage.providers.base import Provider  # noqa: E402
 from ai_usage.tray.icons import ensure_icon  # noqa: E402
 
@@ -40,6 +40,7 @@ class TrayApp:
         self.backoff = Backoff(max(MIN_LIMITS_INTERVAL_SECONDS, limits_interval))
         self.snapshot: LimitsSnapshot | None = provider.cached_limits()
         self.records: list[UsageRecord] = []
+        self.buckets: list[UsageBucket] = []
         self.records_loaded = False
         self.window = None
 
@@ -195,7 +196,7 @@ class TrayApp:
                 )
         self.status_item.set_label(self._status_text())
         if self.window is not None and self.window.get_visible():
-            self.window.update(self.snapshot, self.records, self._status_text())
+            self.window.update(self.snapshot, self.records, self._status_text(), self.buckets)
 
     # ----- refresh scheduling -----------------------------------------------------
 
@@ -251,13 +252,17 @@ class TrayApp:
         self._tokens_timer = None
         if not self._tokens_busy:
             self._tokens_busy = True
-            self._in_background("logs", self.provider.usage_records, self._on_tokens)
+            self._in_background("logs", self._load_usage, self._on_tokens)
         return False
 
-    def _on_tokens(self, records: list[UsageRecord] | None, error: Exception | None) -> bool:
+    def _load_usage(self) -> tuple[list[UsageRecord], list[UsageBucket]]:
+        # Runs in the background thread: scanning also updates the persistent history.
+        return self.provider.usage_records(), self.provider.usage_history()
+
+    def _on_tokens(self, result, error: Exception | None) -> bool:
         self._tokens_busy = False
-        if error is None and records is not None:
-            self.records = records
+        if error is None and result is not None:
+            self.records, self.buckets = result
             self.records_loaded = True
         else:
             print(f"ai-usage: scanning logs failed: {error}", file=sys.stderr)
@@ -272,7 +277,7 @@ class TrayApp:
             from ai_usage.tray.window import StatsWindow
 
             self.window = StatsWindow(self.provider.title, self.provider.usage_scope)
-        self.window.update(self.snapshot, self.records, self._status_text())
+        self.window.update(self.snapshot, self.records, self._status_text(), self.buckets)
         self.window.show_all()
         self.window.present()
 

@@ -11,6 +11,8 @@ PERIODS = {
     "today": "Today",
     "7d": "Last 7 days",
     "30d": "Last 30 days",
+    "90d": "Last 90 days",
+    "12m": "Last 12 months",
     "all": "All time",
 }
 
@@ -22,14 +24,18 @@ def local_now() -> datetime:
 
 
 def period_start(period: str, now: datetime | None = None) -> datetime | None:
-    """Start of a period in local time; calendar days, so '7d' = today + 6 previous days."""
+    """Start of a period in local time, in whole calendar units: '7d' = today + the 6 days
+    before, '12m' = this month + the 11 months before (so month bars are complete)."""
     if period == "all":
         return None
-    days = {"today": 1, "7d": 7, "30d": 30}.get(period)
-    if days is None:
-        raise ValueError(f"unknown period: {period!r} (expected one of {', '.join(PERIODS)})")
     now = (now or local_now()).astimezone()
     midnight = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    if period == "12m":
+        months = midnight.year * 12 + midnight.month - 1 - 11
+        return midnight.replace(year=months // 12, month=months % 12 + 1, day=1)
+    days = {"today": 1, "7d": 7, "30d": 30, "90d": 90}.get(period)
+    if days is None:
+        raise ValueError(f"unknown period: {period!r} (expected one of {', '.join(PERIODS)})")
     return midnight - timedelta(days=days - 1)
 
 

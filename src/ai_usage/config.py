@@ -43,6 +43,21 @@ def save(data: dict) -> None:
         raise
 
 
+def get_pref(name: str, default: str, allowed: Iterable[str]) -> str:
+    """A string preference under "prefs", falling back to `default` if unset or invalid."""
+    prefs = load().get("prefs")
+    value = prefs.get(name) if isinstance(prefs, dict) else None
+    return value if isinstance(value, str) and value in set(allowed) else default
+
+
+def set_pref(name: str, value: str) -> None:
+    data = load()
+    prefs = data.get("prefs") if isinstance(data.get("prefs"), dict) else {}
+    prefs[name] = value
+    data["prefs"] = prefs
+    save(data)
+
+
 def hidden_projects() -> set[str]:
     value = load().get(HIDDEN_KEY)
     if not isinstance(value, list):

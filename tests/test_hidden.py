@@ -25,6 +25,7 @@ class TempEnv(unittest.TestCase):
             "HOME": str(self.tmp / "home"),
             "XDG_CONFIG_HOME": str(self.tmp / "config"),
             "XDG_CACHE_HOME": str(self.tmp / "cache"),
+            "XDG_DATA_HOME": str(self.tmp / "data"),
             "CLAUDE_CONFIG_DIR": str(self.tmp / "claude"),
         })
         env.start()

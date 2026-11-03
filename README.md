@@ -18,7 +18,8 @@ Last 7 days   3.1k    900k      5.4M      180M   186M  950
 
 The top bar shows a ring gauge (session usage) and a label such as `42% · 17%`
 (session · weekly). The menu lists every limit window, today's and the last 7 days'
-token totals, and opens a statistics window with breakdowns by model, project and day.
+token totals, and opens a statistics window with breakdowns by model and project and a
+timeline chart.
 
 ## Requirements
 
@@ -45,9 +46,28 @@ Without installing: `PYTHONPATH=src python3 -m ai_usage`.
 |---|---|
 | `ai-usage` / `ai-usage status [--json]` | limits + Today / Last 7 days tokens |
 | `ai-usage limits [--json]` | limit windows only |
-| `ai-usage tokens [--period today\|7d\|30d\|all] [--by model\|project\|day] [--json]` | token table |
+| `ai-usage tokens [--period today\|7d\|30d\|90d\|12m\|all] [--by model\|project\|day] [--json]` | token table |
 | `ai-usage tray [--interval 180]` | top bar indicator (limits refresh in seconds, min 60) |
 | `ai-usage autostart [enable\|disable\|status]` | start on login |
+
+## Timeline
+
+The period selector at the top (Today, 7 / 30 / 90 days, 12 months, All time) scopes
+every tab, including the **Timeline**. The timeline charts that period per **day / week /
+month** (Today is shown by hour) for one metric: **Output** (default: what Claude
+generated, the best proxy for work done), Total, Requests, or Input + cache write.
+Total is usually ~98% cache reads, so its chart mostly tracks those. A bar size that
+would need more than 120 bars is disabled for that period (e.g. days for "All time"
+after a few months). You can filter by project. A dashed line marks the average per
+bar. The summary compares the period with the one right before it, e.g. Today vs
+yesterday up to the same hour. Hover over a column for its numbers; the table below
+lists every bar.
+
+Bars that cover only part of their span are drawn lighter and aren't counted in the
+average: the running period, a week cut by the period start, and the period in which
+your history starts. Days before the history starts aren't drawn. The comparison is
+shown only when the history covers both spans. The period, metric and bar size are
+remembered.
 
 ## Hiding projects
 
@@ -79,11 +99,17 @@ screen (e.g. while screen sharing); it's not access control.
   (or `$CLAUDE_CONFIG_DIR`). Streaming writes each response several times, so the
   scanner deduplicates by message and request id and keeps the final copy.
   Projects are the directories `claude` was started in.
+- **History**: each scan also adds hourly totals (numbers only: hour, model, project)
+  to `~/.local/share/ai-usage/claude-history.json`, so the timeline keeps days whose
+  transcripts Claude Code has since deleted. History is collected only while the tray
+  or the CLI runs, so enable autostart (`ai-usage autostart enable`) to avoid gaps.
 
 Limit percentages include all your Claude usage (web, desktop, other machines). Token
-totals cover only Claude Code on this machine, and only transcripts Claude Code hasn't
-cleaned up yet (default retention is 30 days). "Total" includes cache reads, which
-usually dominate.
+totals cover only Claude Code on this machine. The tables cover the transcripts that still
+exist: Claude Code deletes them after `cleanupPeriodDays` (default 30; set it higher in
+`~/.claude/settings.json`, e.g. `365`, to keep them longer, at roughly 0.5 GB per busy
+month). The timeline also covers older days from the history. "Total" includes cache
+reads, which usually dominate.
 
 ## Development
 
