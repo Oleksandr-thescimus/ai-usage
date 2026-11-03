@@ -78,6 +78,15 @@ only covers the transcripts that still exist.
   `$XDG_CACHE_HOME/ai-usage/claude-limits.json` and shown, marked stale with its age,
   when a fresh fetch fails.
 
+- **FR-9 Hidden projects**: right-click a project in the "By project" tab → Hide project;
+  CLI `hide <project>` (path, name or unique substring). Hidden projects are left out of
+  the per-project lists only; totals and the model/day breakdowns still include them.
+  Reveal is deliberately unadvertised: **Ctrl+Shift+H** in the statistics window toggles a
+  mode that shows hidden projects (marked, unhide via right-click or "Unhide all") and
+  switches off when the window closes; CLI `unhide <project>|--all` and
+  `tokens --show-hidden`, both missing from `--help`. Stored in
+  `$XDG_CONFIG_HOME/ai-usage/config.json`.
+
 ## Non-functional requirements
 
 - **NFR-1 Read-only towards Claude**: never write the credentials file, never refresh the

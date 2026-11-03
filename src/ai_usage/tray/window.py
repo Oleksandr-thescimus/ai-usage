@@ -1,13 +1,20 @@
-"""Statistics window: limit bars + token tables by model / project / day."""
+"""Statistics window: limit bars + token tables by model / project / day.
+
+Projects can be hidden from the "By project" tab (right click → Hide project). Totals and
+the other tabs still count them. Ctrl+Shift+H toggles a reveal mode that shows hidden
+projects (marked, and unhidable from the right-click menu or "Unhide all"); the mode
+switches off whenever the window is closed.
+"""
 
 from __future__ import annotations
 
 import gi
 
 gi.require_version("Gtk", "3.0")
-from gi.repository import GObject, Gtk, Pango  # noqa: E402
+gi.require_version("Gdk", "3.0")
+from gi.repository import Gdk, GObject, Gtk, Pango  # noqa: E402
 
-from ai_usage import fmt  # noqa: E402
+from ai_usage import config, fmt  # noqa: E402
 from ai_usage.aggregate import GROUPINGS, PERIODS, group_by, in_period, totals  # noqa: E402
 from ai_usage.models import LimitsSnapshot, UsageRecord  # noqa: E402
 
@@ -18,7 +25,9 @@ progressbar.critical progress { background-color: #e01b24; border-color: #e01b24
 """
 
 NUMERIC_COLUMNS = ["Input", "Output", "Cache write", "Cache read", "Total", "Requests"]
+HIDDEN_COLUMN = len(NUMERIC_COLUMNS) + 1  # bool: row is a hidden project (reveal mode only)
 TAB_TITLES = {"model": "By model", "project": "By project", "day": "By day"}
+REVEAL_MODIFIERS = Gdk.ModifierType.CONTROL_MASK | Gdk.ModifierType.SHIFT_MASK
 
 
 class StatsWindow(Gtk.Window):
@@ -27,9 +36,12 @@ class StatsWindow(Gtk.Window):
         self.set_default_size(860, 580)
         self.set_icon_name("utilities-system-monitor")
         self.connect("delete-event", self._on_delete)
+        self.connect("key-press-event", self._on_key_press)
         self._snapshot: LimitsSnapshot | None = None
         self._records: list[UsageRecord] = []
         self._period = "7d"
+        self._hidden: set[str] = set()
+        self._reveal = False
 
         provider = Gtk.CssProvider()
         provider.load_from_data(CSS)
@@ -61,11 +73,13 @@ class StatsWindow(Gtk.Window):
         header.pack_end(self._period_combo, False, False, 0)
         root.pack_start(header, False, False, 0)
 
+        root.pack_start(self._make_reveal_bar(), False, False, 0)
+
         self._stores: dict[str, Gtk.ListStore] = {}
-        notebook = Gtk.Notebook()
+        self._notebook = Gtk.Notebook()
         for by in GROUPINGS:
-            notebook.append_page(self._make_table(by), Gtk.Label(label=TAB_TITLES[by]))
-        root.pack_start(notebook, True, True, 0)
+            self._notebook.append_page(self._make_table(by), Gtk.Label(label=TAB_TITLES[by]))
+        root.pack_start(self._notebook, True, True, 0)
 
         self._totals = Gtk.Label(xalign=0, selectable=True)
         root.pack_start(self._totals, False, False, 0)
@@ -76,15 +90,30 @@ class StatsWindow(Gtk.Window):
         label.set_markup(f"<b>{GObject.markup_escape_text(text)}</b>")
         return label
 
+    def _make_reveal_bar(self) -> Gtk.Widget:
+        self._reveal_bar = Gtk.Box(spacing=12)
+        self._reveal_bar.set_no_show_all(True)  # only shown in reveal mode
+        self._reveal_label = Gtk.Label(xalign=0)
+        self._reveal_bar.pack_start(self._reveal_label, True, True, 0)
+        self._unhide_all_button = Gtk.Button(label="Unhide all")
+        self._unhide_all_button.connect("clicked", self._on_unhide_all)
+        self._reveal_bar.pack_end(self._unhide_all_button, False, False, 0)
+        self._reveal_label.show()
+        self._unhide_all_button.show()
+        return self._reveal_bar
+
     def _make_table(self, by: str) -> Gtk.Widget:
-        store = Gtk.ListStore(str, *([GObject.TYPE_INT64] * len(NUMERIC_COLUMNS)))
+        store = Gtk.ListStore(str, *([GObject.TYPE_INT64] * len(NUMERIC_COLUMNS)), bool)
         self._stores[by] = store
         tree = Gtk.TreeView(model=store)
         tree.set_enable_search(True)
         tree.set_search_column(0)
+        if by == "project":
+            tree.connect("button-press-event", self._on_project_click)
 
         name_cell = Gtk.CellRendererText(ellipsize=Pango.EllipsizeMode.START)
-        name_col = Gtk.TreeViewColumn(by.capitalize(), name_cell, text=0)
+        name_col = Gtk.TreeViewColumn(by.capitalize(), name_cell)
+        name_col.set_cell_data_func(name_cell, self._format_name)
         name_col.set_expand(True)
         name_col.set_resizable(True)
         name_col.set_sort_column_id(0)
@@ -104,17 +133,82 @@ class StatsWindow(Gtk.Window):
         return scroll
 
     @staticmethod
+    def _format_name(column, cell, model, it, _data) -> None:
+        name, hidden = model.get_value(it, 0), model.get_value(it, HIDDEN_COLUMN)
+        cell.set_property("text", f"{name}  (hidden)" if hidden else name)
+        cell.set_property("style", Pango.Style.ITALIC if hidden else Pango.Style.NORMAL)
+        cell.set_property("sensitive", not hidden)
+
+    @staticmethod
     def _format_cell(column, cell, model, it, index) -> None:
         value = model.get_value(it, index)
         cell.set_property("text", str(value) if index == len(NUMERIC_COLUMNS) else fmt.human_tokens(value))
 
+    # ----- events -----------------------------------------------------------------
+
     def _on_delete(self, *_args) -> bool:
         self.hide()
+        if self._reveal:
+            self._set_reveal(False)  # closing always hides the hidden projects again
         return True  # keep the window for next time
+
+    def _on_key_press(self, _widget, event: Gdk.EventKey) -> bool:
+        if (
+            Gdk.keyval_to_lower(event.keyval) == Gdk.KEY_h
+            and event.state & REVEAL_MODIFIERS == REVEAL_MODIFIERS
+        ):
+            self._set_reveal(not self._reveal)
+            return True
+        return False
+
+    def _set_reveal(self, reveal: bool) -> None:
+        self._reveal = reveal
+        if reveal:
+            self._reveal_bar.show()
+            self._notebook.set_current_page(GROUPINGS.index("project"))
+        else:
+            self._reveal_bar.hide()
+        self._fill_tables()
 
     def _on_period_changed(self, combo: Gtk.ComboBoxText) -> None:
         self._period = combo.get_active_id() or "7d"
         self._fill_tables()
+
+    def _on_project_click(self, tree: Gtk.TreeView, event: Gdk.EventButton) -> bool:
+        if event.type != Gdk.EventType.BUTTON_PRESS or event.button != Gdk.BUTTON_SECONDARY:
+            return False
+        hit = tree.get_path_at_pos(int(event.x), int(event.y))
+        if hit is None:
+            return False
+        path = hit[0]
+        tree.get_selection().select_path(path)
+        model = tree.get_model()
+        name, hidden = model[path][0], model[path][HIDDEN_COLUMN]
+
+        menu = Gtk.Menu()
+        item = Gtk.MenuItem(label="Unhide project" if hidden else "Hide project")
+        item.connect("activate", lambda *_: self._set_project_hidden(name, not hidden))
+        menu.append(item)
+        menu.show_all()
+        menu.attach_to_widget(tree, None)
+        menu.popup_at_pointer(event)
+        return True
+
+    def _set_project_hidden(self, name: str, hidden: bool) -> None:
+        try:
+            config.set_hidden(name, hidden)
+        except OSError as e:
+            self._status.set_text(f"Couldn't save settings: {e}")
+        self._fill_tables()
+
+    def _on_unhide_all(self, _button) -> None:
+        try:
+            config.unhide_all()
+        except OSError as e:
+            self._status.set_text(f"Couldn't save settings: {e}")
+        self._fill_tables()
+
+    # ----- data -------------------------------------------------------------------
 
     def update(self, snapshot: LimitsSnapshot | None, records: list[UsageRecord], status: str) -> None:
         self._snapshot = snapshot
@@ -144,11 +238,22 @@ class StatsWindow(Gtk.Window):
         self._limits_grid.show_all()
 
     def _fill_tables(self) -> None:
+        self._hidden = config.hidden_projects()  # re-read: the CLI may have changed it
         records = in_period(self._records, self._period)
         for by, store in self._stores.items():
             store.clear()
             for name, t in group_by(records, by):
-                store.append([name, t.input, t.output, t.cache_write, t.cache_read, t.total, t.requests])
+                hidden = by == "project" and name in self._hidden
+                if hidden and not self._reveal:
+                    continue
+                store.append([name, t.input, t.output, t.cache_write, t.cache_read, t.total, t.requests, hidden])
+        count = len(self._hidden)
+        self._reveal_label.set_text(
+            f"Showing {count} hidden project(s) · right click a project to unhide it · Ctrl+Shift+H to stop"
+            if count
+            else "No hidden projects · Ctrl+Shift+H to close this bar"
+        )
+        self._unhide_all_button.set_sensitive(count > 0)
         t = totals(records)
         self._totals.set_text(
             f"Total: {fmt.human_tokens(t.total)} tokens · input {fmt.human_tokens(t.input)} · "

@@ -49,6 +49,9 @@ install.sh             wrapper + launcher install/uninstall
 - [x] **9. Verification**: unit tests green; CLI on real data; token totals cross-checked
       against an independent `jq` count; tray registered on D-Bus and screenshotted.
 
+- [x] **10. Hidden projects (FR-9)**: `config.py`, CLI `hide`/`unhide`/`--show-hidden`,
+      right-click menu + Ctrl+Shift+H reveal mode in the statistics window, tests.
+
 ## Verification results (2026-11-03)
 
 - 41 unit tests pass (`PYTHONPATH=src python3 -m unittest discover -s tests -t .`).
@@ -63,6 +66,10 @@ install.sh             wrapper + launcher install/uninstall
   signal (it doesn't read the property when an indicator appears), and libayatana only
   emits that signal when the text changes. The tray now re-sends the label 1/3/6 s after
   connecting, and on every refresh it alternates an invisible zero-width space suffix.
+
+- Hidden projects: 50 unit tests pass (incl. "not in --help"). The window was driven with
+  synthetic data and a temp config: Ctrl+H alone does nothing; Ctrl+Shift+H reveals;
+  right-click offers Hide/Unhide; closing the window turns reveal mode off.
 
 ## Later (not v0.1)
 

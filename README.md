@@ -49,6 +49,24 @@ Without installing: `PYTHONPATH=src python3 -m ai_usage`.
 | `ai-usage tray [--interval 180]` | top bar indicator (limits refresh in seconds, min 60) |
 | `ai-usage autostart [enable\|disable\|status]` | start on login |
 
+## Hiding projects
+
+Right-click a project in the statistics window's **By project** tab and choose
+**Hide project**. It disappears from the per-project lists (that tab and
+`ai-usage tokens --by project`). Totals and the model/day breakdowns still count it.
+
+Hidden projects are deliberately not advertised in the UI:
+
+- **Ctrl+Shift+H** in the statistics window shows hidden projects, marked *(hidden)*.
+  Right-click one to unhide it, or press **Unhide all**. The mode switches off when you
+  close the window.
+- CLI: `ai-usage hide <project>` (a path, a name or a unique part of it),
+  `ai-usage unhide <project>` / `ai-usage unhide --all`, and
+  `ai-usage tokens --by project --show-hidden`. These aren't listed in `--help`.
+
+The list is stored in `~/.config/ai-usage/config.json`. This keeps projects off the
+screen (e.g. while screen sharing); it's not access control.
+
 ## Where the numbers come from
 
 - **Limits**: `GET https://api.anthropic.com/api/oauth/usage`, the endpoint behind
