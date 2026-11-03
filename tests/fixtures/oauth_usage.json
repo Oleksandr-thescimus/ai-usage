@@ -1,0 +1,46 @@
+{
+  "five_hour": {
+    "utilization": 42.0,
+    "resets_at": "2026-01-15T17:00:00.000000+00:00",
+    "limit_dollars": null,
+    "used_dollars": null,
+    "remaining_dollars": null,
+    "locked_reason": null
+  },
+  "seven_day": {
+    "utilization": 17.0,
+    "resets_at": "2026-01-19T20:00:00.000000+00:00",
+    "limit_dollars": null,
+    "used_dollars": null,
+    "remaining_dollars": null,
+    "locked_reason": null
+  },
+  "seven_day_oauth_apps": null,
+  "seven_day_opus": null,
+  "seven_day_sonnet": null,
+  "tangelo": null,
+  "extra_usage": {
+    "is_enabled": false,
+    "monthly_limit": null
+  },
+  "limits": [
+    {
+      "kind": "session",
+      "group": "session",
+      "percent": 42,
+      "severity": "normal",
+      "resets_at": "2026-01-15T17:00:00.000000+00:00",
+      "scope": null,
+      "is_active": true
+    },
+    {
+      "kind": "weekly_all",
+      "group": "weekly",
+      "percent": 17,
+      "severity": "normal",
+      "resets_at": "2026-01-19T20:00:00.000000+00:00",
+      "scope": null,
+      "is_active": false
+    }
+  ]
+}
